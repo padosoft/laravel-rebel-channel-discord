@@ -9,7 +9,7 @@ use Illuminate\Http\Client\Factory as HttpFactory;
 use Padosoft\Rebel\Channel\Discord\Contracts\DiscordGateway;
 use Padosoft\Rebel\Channel\Discord\Delivery\DiscordDeliveryChannel;
 use Padosoft\Rebel\Channel\Discord\Gateway\HttpDiscordGateway;
-use Padosoft\Rebel\Channels\Contracts\MessageDeliveryChannel;
+use Padosoft\Rebel\Channels\Routing\DeliveryChannelRegistry;
 use Padosoft\Rebel\Core\Contracts\AuditLogger;
 use Padosoft\Rebel\Core\Contracts\KeyedHasher;
 use Spatie\LaravelPackageTools\Package;
@@ -21,14 +21,12 @@ use Spatie\LaravelPackageTools\PackageServiceProvider;
  *
  * Config is read lazily: the package installs cleanly with no Discord config, and the
  * delivery channel simply does not register until you set DISCORD_WEBHOOK_URL. The
- * channel is bound to the {@see MessageDeliveryChannel} contract and tagged
- * `rebel.delivery-channels`, so consumers can resolve it directly or via the tag.
+ * channel registers itself into the shared {@see DeliveryChannelRegistry} (provided by
+ * laravel-rebel-channels) keyed by `discord`, so it coexists with every other delivery
+ * channel and the admin panel can enumerate them all.
  */
 final class RebelDiscordServiceProvider extends PackageServiceProvider
 {
-    /** Container tag under which all Rebel message-delivery channels are collected. */
-    public const DELIVERY_TAG = 'rebel.delivery-channels';
-
     public function configurePackage(Package $package): void
     {
         $package
@@ -58,7 +56,7 @@ final class RebelDiscordServiceProvider extends PackageServiceProvider
             });
         }
 
-        $this->app->singleton(MessageDeliveryChannel::class, function () use ($config, $webhookUrl): DiscordDeliveryChannel {
+        $this->app->singleton(DiscordDeliveryChannel::class, function () use ($config, $webhookUrl): DiscordDeliveryChannel {
             return new DiscordDeliveryChannel(
                 $this->app->make(DiscordGateway::class),
                 $this->app->make(AuditLogger::class),
@@ -69,7 +67,12 @@ final class RebelDiscordServiceProvider extends PackageServiceProvider
             );
         });
 
-        $this->app->tag([MessageDeliveryChannel::class], self::DELIVERY_TAG);
+        // Register into the shared delivery registry (keyed 'discord') so it coexists
+        // with every other delivery channel instead of fighting over one contract binding.
+        if (class_exists(DeliveryChannelRegistry::class) && $this->app->bound(DeliveryChannelRegistry::class)) {
+            $this->app->make(DeliveryChannelRegistry::class)
+                ->register($this->app->make(DiscordDeliveryChannel::class));
+        }
     }
 
     private function stringConfig(Repository $config, string $key): string

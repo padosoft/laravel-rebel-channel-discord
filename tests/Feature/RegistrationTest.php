@@ -6,21 +6,20 @@ use Illuminate\Config\Repository;
 use Illuminate\Foundation\Application;
 use Padosoft\Rebel\Channel\Discord\Delivery\DiscordDeliveryChannel;
 use Padosoft\Rebel\Channel\Discord\RebelDiscordServiceProvider;
-use Padosoft\Rebel\Channels\Contracts\MessageDeliveryChannel;
 use Padosoft\Rebel\Channels\Enums\Channel;
+use Padosoft\Rebel\Channels\Routing\DeliveryChannelRegistry;
 
-it('registers the Discord delivery channel when a webhook URL is configured', function (): void {
-    // The base TestCase configures a webhook_url, so the channel is bound + tagged.
-    expect(app()->bound(MessageDeliveryChannel::class))->toBeTrue();
+it('registers the Discord delivery channel into the shared registry when a webhook URL is configured', function (): void {
+    // The base TestCase configures a webhook_url, so the channel registers under 'discord'.
+    $registry = app(DeliveryChannelRegistry::class);
 
-    $channel = app(MessageDeliveryChannel::class);
+    expect($registry->has('discord'))->toBeTrue();
+
+    $channel = $registry->get('discord');
     expect($channel)->toBeInstanceOf(DiscordDeliveryChannel::class)
         ->and($channel->key())->toBe('discord')
-        ->and($channel->supports(Channel::Discord))->toBeTrue();
-
-    $tagged = iterator_to_array(app()->tagged(RebelDiscordServiceProvider::DELIVERY_TAG));
-    expect($tagged)->toHaveCount(1)
-        ->and($tagged[0])->toBeInstanceOf(DiscordDeliveryChannel::class);
+        ->and($channel->supports(Channel::Discord))->toBeTrue()
+        ->and($registry->supporting(Channel::Discord))->toContain($channel);
 });
 
 it('does not register the channel when no webhook URL is configured', function (): void {
@@ -30,7 +29,7 @@ it('does not register the channel when no webhook URL is configured', function (
 
     (new RebelDiscordServiceProvider($app))->packageBooted();
 
-    expect($app->bound(MessageDeliveryChannel::class))->toBeFalse();
+    expect($app->bound(DiscordDeliveryChannel::class))->toBeFalse();
 });
 
 it('does not register the channel when register_provider is disabled', function (): void {
@@ -41,7 +40,7 @@ it('does not register the channel when register_provider is disabled', function 
 
     (new RebelDiscordServiceProvider($app))->packageBooted();
 
-    expect($app->bound(MessageDeliveryChannel::class))->toBeFalse();
+    expect($app->bound(DiscordDeliveryChannel::class))->toBeFalse();
 });
 
 /**
