@@ -1,5 +1,8 @@
 # Laravel Rebel — Discord Channel
 
+> Official documentation: https://doc.laravel-rebel.padosoft.com
+
+
 > **Ship your security alerts to Discord, the Rebel way.** This package plugs a Discord
 > [incoming webhook](https://support.discord.com/hc/en-us/articles/228383668-Intro-to-Webhooks)
 > into [`laravel-rebel-channels`](https://github.com/padosoft/laravel-rebel-channels) as a
@@ -351,3 +354,4 @@ composer pint      # code style
 ```
 
 **License:** MIT — see [LICENSE](LICENSE). Part of the [`padosoft/laravel-rebel`](https://github.com/padosoft) suite.
+
